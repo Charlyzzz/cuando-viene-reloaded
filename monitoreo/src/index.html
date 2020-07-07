@@ -24,10 +24,11 @@
     }
 
     .servicios {
+        margin-top: 2rem;
         flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
     }
 
     .status {
@@ -46,7 +47,6 @@
         border: 3px solid black;
         border-radius: 25px;
         width: 20vw;
-        height: 30vh;
     }
 
     .up {
@@ -56,8 +56,25 @@
     .down {
         background-color: red;
     }
+
+    .reportes {
+        display: grid;
+        grid-template-columns: repeat(20, 1fr);
+        grid-gap: 5px;
+        width: 80%;
+        margin: auto;
+    }
+
+    .reportes > div {
+        padding-top: 50%;
+    }
+
+    .empty {
+        background-color: aliceblue;
+    }
+
 </style>
-<script>
+<script defer>
     const { host } = window.location;
     const socket = new WebSocket('ws://' + host);
 
@@ -69,6 +86,8 @@
             msg.estados.forEach(({ servicio, status }) => {
                 actualizarEstado(servicio, status);
             });
+        } else if ('reportes' === type) {
+            actualizarReportes(msg.reportes);
         } else {
             console.log(msg);
         }
@@ -93,6 +112,32 @@
             elemento.classList.replace(claseContrariaDelStatus, claseDelStatus);
         }
     }
+
+    function prepararReportes() {
+        const reportesDiv = document.querySelector('#reportes');
+        for (let i = 0; i < 200; i++) {
+            const reporte = document.createElement('div');
+            reporte.classList.add('empty');
+            reportesDiv.appendChild(reporte);
+
+        }
+    }
+
+    function actualizarReportes(reportes) {
+        const reportesDiv = document.querySelector('#reportes');
+        reportes.forEach((r, i) => {
+            reporteAReemplazar = reportesDiv.children[i];
+            const [currentState, oppositeState] = r.status ? ['up', 'down'] : ['down', 'up'];
+            reporteAReemplazar.classList.remove('empty');
+            reporteAReemplazar.classList.remove(oppositeState);
+            reporteAReemplazar.classList.add(currentState);
+        });
+    }
+
+    document.onreadystatechange = () => {
+        prepararReportes();
+        document.onreadystatechange = () => {};
+    };
 </script>
 <body>
 <div class="contenido">
@@ -104,7 +149,12 @@
         <div class="status" id="status">
 
         </div>
+
+        <div id="reportes" class="reportes">
+
+        </div>
     </div>
+
 </div>
 </body>
 </html>

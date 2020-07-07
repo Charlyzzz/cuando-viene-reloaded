@@ -1,4 +1,4 @@
-const { app, trackearEstadoDeLineas } = require('./src/app');
+const { app, trackearEstadoDeLineas, trackearReportes } = require('./src/app');
 
 const servicios = [
     {
@@ -20,5 +20,6 @@ const PORT = process.env.PORT;
 app.listen(PORT, () => {
     console.log(`[MONITOREO] escuchando en el puerto ${PORT}`);
     trackearEstadoDeLineas(servicios);
+    trackearReportes();
 });
 

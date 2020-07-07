@@ -2,17 +2,60 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { get } = require('./request');
+const MongoClient = require('mongodb').MongoClient;
+
+let estado;
+const TIME_RESOLUTION = 2000;
+
+function reportarEstados(estados) {
+    const status = estados.every(_ => _.status === 'UP');
+    const timeSlot = Math.round(Date.now() / TIME_RESOLUTION);
+    estado = { timeSlot, status };
+}
+
+const MONGO_URL = 'mongodb://localhost:27017';
+const client = new MongoClient(MONGO_URL, { useUnifiedTopology: true });
+
+client.connect(function (err, client) {
+    if (err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log('Connected successfully to server');
+
+    const statusCollection = client.db('monitor').collection('status');
+
+    setInterval(() => {
+        if (estado) {
+            const { timeSlot, status } = estado;
+            statusCollection.updateOne({ timeSlot }, {
+                $set: {
+                    status,
+                    timeSlot,
+                },
+            }, { upsert: true }, (err, res) => {
+                if (err) {
+                    console.error(err);
+                }
+            });
+        }
+    }, TIME_RESOLUTION);
+});
+const statusCollection = client.db('monitor').collection('status');
 
 const app = new express();
 const websocketsConnected = [];
 
-function formatoWsFriendly(contenido) {
-    const esTexto = typeof contenido === 'string';
-    return JSON.stringify({ msg: contenido, type: esTexto ? 'texto' : 'estados' });
+function formatoWsFriendly(contenido, estado) {
+    return JSON.stringify({ msg: contenido, type: estado });
 }
 
-function broadcast(payload) {
-    let msg = formatoWsFriendly(payload);
+function textoWsFriendly(texto) {
+    return JSON.stringify({ msg: texto, type: 'string' });
+}
+
+function broadcast(payload, estado = 'estados') {
+    let msg = formatoWsFriendly(payload, estado);
     websocketsConnected.forEach(_ => _.send(msg));
 }
 
@@ -24,7 +67,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-    ws.send(formatoWsFriendly('¡Conectado al monitoreo de servicios!'));
+    ws.send(textoWsFriendly('¡Conectado al monitoreo de servicios!'));
     websocketsConnected.push(ws);
 
     ws.on('close', () => {
@@ -34,6 +77,18 @@ wss.on('connection', (ws) => {
         }
     });
 });
+
+function trackearReportes() {
+    setInterval(() => {
+        statusCollection.find().sort([['timeSlot', -1]]).limit(200).toArray((err, reportes) => {
+            if (err) {
+                console.error(err);
+                return;
+            }
+            broadcast({ reportes }, 'reportes');
+        });
+    }, TIME_RESOLUTION);
+}
 
 function trackearEstadoDeLineas(servicios) {
     const estados = servicios.map(servicio => {
@@ -60,6 +115,7 @@ function trackearEstadoDeLineas(servicios) {
                 }
             }, []);
             broadcast({ estados });
+            reportarEstados(estados);
             setTimeout(trackearEstadoDeLineas.bind(undefined, servicios), 1000);
         });
 }
@@ -67,4 +123,5 @@ function trackearEstadoDeLineas(servicios) {
 module.exports = {
     app: server,
     trackearEstadoDeLineas,
+    trackearReportes,
 };
