@@ -1,8 +1,5 @@
 const express = require('express');
-const { healthCheck, inestabilidadDeRed } = require('../middleware');
-const { SERVICIOS } = require('../config');
-
-const PARADAS = SERVICIOS.paradas;
+const { healthCheck, inestabilidadDeRed } = require('./middleware');
 
 const app = new express();
 
@@ -34,6 +31,4 @@ app.get('/paradas/:parada', (req, res) => {
     }
 });
 
-app.listen(PARADAS.puerto, () => {
-    console.log(`[${PARADAS.nombre}] escuchando en el puerto ${PARADAS.puerto}`);
-});
+module.exports = app;

@@ -4,17 +4,10 @@ const http = require('http');
  * Alguien nos dejó esta implementación de un GET en node.
  * ¡No cambiar interfaz!
  */
-function get(servicio, ruta, cb) {
-    const opciones = {
-        hostname: servicio.host,
-        port: servicio.puerto,
-        path: ruta,
-        method: 'GET',
-    };
-
-    const req = http.request(opciones, res => {
+function get(url, cb) {
+    const req = http.request(url, res => {
         if (res.statusCode !== 200) {
-            return cb(new Error(`Request a ${servicio.nombre}${ruta} respondió ${res.statusCode}`));
+            return cb(new Error(`Request a ${url} respondió ${res.statusCode}`));
         }
         let body = '';
         res
